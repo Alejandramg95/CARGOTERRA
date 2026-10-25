@@ -39,3 +39,54 @@ async function copyText(text,status){try{await navigator.clipboard.writeText(tex
 $('#copy-email').addEventListener('click',()=>copyText('contacto@cargoterra.com.mx',$('#email-status')));
 $('#copy').addEventListener('click',()=>copyText(request,$('#request-status')));
 $('#download').addEventListener('click',()=>{const blob=new Blob([request],{type:'text/plain;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='Solicitud_CARGOTERRA.txt';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);$('#request-status').textContent='Solicitud descargada. Puedes adjuntarla en tu correo.';});
+
+// Progressive enhancement: content stays visible if animation APIs are unavailable.
+const motionPreference = window.matchMedia('(prefers-reduced-motion: reduce)');
+const runningAnimations = new Set();
+function animateEntrance(element, delay = 0) {
+  if (motionPreference.matches || !element.animate) return;
+  const animation = element.animate([
+    { opacity: 0, transform: 'translateY(22px)' },
+    { opacity: 1, transform: 'translateY(0)' }
+  ], { duration: 650, delay, easing: 'cubic-bezier(.2,.65,.3,1)', fill: 'backwards' });
+  runningAnimations.add(animation);
+  animation.finished.catch(() => {}).finally(() => runningAnimations.delete(animation));
+}
+if ('IntersectionObserver' in window) {
+  const entrances = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+      animateEntrance(entry.target);
+      entrances.unobserve(entry.target);
+    });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.section-head,.service-browser,.about-visual,.about-copy,.steps li,.route-banner .wrap,.quote-intro,.quote-box,.faq>div').forEach(element => entrances.observe(element));
+}
+motionPreference.addEventListener('change', () => {
+  if (motionPreference.matches) runningAnimations.forEach(animation => animation.cancel());
+});
+tabs.forEach(tab => tab.addEventListener('click', () => animateEntrance($('.service-panel-copy'))));
+const progress = document.createElement('div');
+progress.className = 'scroll-progress';
+progress.setAttribute('aria-hidden', 'true');
+$('.header').append(progress);
+const sectionLinks = [...nav.querySelectorAll('a[href^="#"]')];
+const navigationSections = sectionLinks.map(link => ({ link, section: document.querySelector(link.hash) })).filter(item => item.section);
+let scrollScheduled = false;
+function updateScrollState() {
+  const distance = document.documentElement.scrollHeight - window.innerHeight;
+  progress.style.transform = `scaleX(${distance > 0 ? Math.min(1, Math.max(0, window.scrollY / distance)) : 0})`;
+  let current;
+  navigationSections.forEach(item => { if (item.section.getBoundingClientRect().top <= 160) current = item; });
+  sectionLinks.forEach(link => {
+    if (current?.link === link) link.setAttribute('aria-current', 'location');
+    else link.removeAttribute('aria-current');
+  });
+  scrollScheduled = false;
+}
+function scheduleScrollState() {
+  if (!scrollScheduled) { scrollScheduled = true; requestAnimationFrame(updateScrollState); }
+}
+window.addEventListener('scroll', scheduleScrollState, { passive: true });
+window.addEventListener('resize', scheduleScrollState);
+updateScrollState();
