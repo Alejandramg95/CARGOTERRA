@@ -1,0 +1,1 @@
+{"name":"cargoterra","private":true,"type":"module","scripts":{"start":"node scripts/serve.mjs","dev":"node scripts/serve.mjs","check":"node --check dist/app.mjs && node --check scripts/serve.mjs"}}
